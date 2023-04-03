@@ -1,0 +1,56 @@
+name: Check Pull Request
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        node-version:
+          - lts/gallium
+          - lts/hydrogen
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+      fail-fast: false
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Use Pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ vars.PNPM_VERSION }}
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          registry-url: "https://registry.npmjs.org/"
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - run: echo "${{ github.head_ref }}"
+
+      - name: Testing
+        run: pnpm run test:cov
+
+      - name: Building
+        run: pnpm build
