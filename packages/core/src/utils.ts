@@ -8,6 +8,7 @@ import path from "node:path";
 import type { DepPkgInfo } from "./types.js";
 import * as babel from "@babel/core";
 import { readPackage, readPackageMemoized } from "./utils/read-package.js";
+import { extractNpmScopeName } from "./utils/deps.js";
 export const _debug = debug(`@shined/stabilizer`);
 
 // xxx.js -> xxx.d.ts 兼容 node esm 格式
@@ -29,17 +30,6 @@ const getDtsPathFormPkg = (pkg: DepPkgInfo) => {
 
 export const isBuildInModule = (pkgName: string) =>
   builtinModules.includes(pkgName.replace(/^node:/, ""));
-
-// a/b  -> a
-// @a/b/c -> @a/b
-// ./a/b -> ./a/b
-export const getPkgName = (moduleName: string) => {
-  if (moduleName.startsWith(".")) return moduleName;
-  return moduleName
-    .split("/")
-    .slice(0, moduleName.startsWith("@") ? 2 : 1)
-    .join("/");
-};
 
 const memoResolver = (...args: any[]) => JSON.stringify(args);
 
@@ -202,7 +192,7 @@ export const checkExternals = (
       }
 
       // 自定义外部路径 @shein-lego/xx/compiled/chokidar -> @shein-lego/xx
-      const pkgName = getPkgName(value);
+      const pkgName = extractNpmScopeName(value);
       const pkgPath = readPackageMemoized(pkgName, rootPkgPath)?.filePath;
       if (!pkgPath) return;
       return readPackageMemoized(pkgName, pkgPath)?.packageJson.version;
@@ -226,7 +216,7 @@ export const getModuleDeps = (file: string) => {
   const code = fs.readFileSync(file, "utf-8");
   const ast = babel.parse(code);
 
-  const hasSubpath = (path: string) => getPkgName(path) !== path;
+  const hasSubpath = (path: string) => extractNpmScopeName(path) !== path;
 
   const list: Set<string> = new Set([]);
   babel.traverse(ast, {

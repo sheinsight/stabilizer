@@ -2,22 +2,24 @@ import omit from "just-omit";
 import ncc from "@vercel/ncc";
 import fs from "node:fs";
 import path from "node:path";
-import type { DepConfig } from "./types.js";
+import type { InlineDepConfig } from "./types.js";
+import { writeJsonFileSync } from "write-json-file";
+import pick from "just-pick";
 
 type BundlePkgOption = Omit<
-  Pick<DepConfig, "name" | "output" | "entry"> &
-    Partial<Pick<DepConfig, "pkg" | "minify" | "externals" | "noBundle">>,
+  Pick<InlineDepConfig, "name" | "output" | "entry"> &
+    Partial<Pick<InlineDepConfig, "pkg" | "minify" | "externals" | "noBundle">>,
   never
 >;
 
-const bundlePkg = async (options: BundlePkgOption, cwd?: string) => {
+const bundlePkg = async (options: InlineDepConfig, cwd?: string) => {
   // pkg.name 和 name 可能不相同(存在 "jest-worker29": "npm:jest-worker@^29", name 是jest-worker29, pkg.name 是jest-worker)
   const {
     name,
     output,
     externals,
     minify = true,
-    pkg,
+    packageJson,
     entry: depEntry,
   } = options;
   let entry: string;
@@ -81,18 +83,14 @@ const bundlePkg = async (options: BundlePkgOption, cwd?: string) => {
   }
 
   // bundle 子路径,不需要写入pkg
-  if (pkg) {
+  if (packageJson) {
     // 写入 package.json
     // LICENSE,author ??
     // type,main,module,exports ??
-    await fs.promises.writeFile(
+
+    writeJsonFileSync(
       path.join(outDir, "package.json"),
-      JSON.stringify({
-        name: pkg.name,
-        version: pkg.version,
-        types: pkg.types || pkg.typings,
-      }),
-      { encoding: "utf-8" }
+      pick(packageJson, "name", "version", "types", "typings")
     );
   }
 };

@@ -1,3 +1,4 @@
+import { NormalizedPackageJson } from "read-pkg";
 import { PackageJson } from "type-fest";
 
 export interface StabilizerConfig {
@@ -21,12 +22,23 @@ export interface UserDepConfig {
   name: string;
   mode?: "bundle" | "bundless";
   minify?: boolean;
-  dts?: boolean;
   /**
    * @default {}
    */
   externals?: Record<string, string>;
   clean?: boolean;
+  /**
+   * 是否需要 dts
+   * @default true
+   */
+  dts?: boolean;
+
+  /**
+   * 是否只进行dts
+   * @default false
+   */
+  dtsOnly?: boolean;
+  noBundle?: NoBundle;
 }
 
 export type PartialRequired<O, K extends keyof O> = Omit<O, K> &
@@ -37,21 +49,12 @@ export type DepPkgInfo = PartialRequired<
   "name" | "version" // dep 确定有 name 和 version
 >;
 
-export type DepConfig = {
-  name: string;
-  mode: "bundle" | "bundless";
-  entry: string;
+export interface InlineDepConfig extends UserDepConfig {
   output: string;
   outDir: string;
-  minify: boolean;
-  dtsOnly: boolean;
-  clean: boolean;
-  dts: boolean;
-  pkg: DepPkgInfo;
-  pkgPath: string;
-  noBundle?: NoBundle;
-  externals?: Record<string, string>;
-};
+  packageJson: NormalizedPackageJson;
+  packageJsonDir: string;
+}
 
 type NoBundle = (config: {
   /* 引用的文件路径(需要不打包的文件路径) **/

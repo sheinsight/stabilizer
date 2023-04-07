@@ -18,7 +18,7 @@ export function perfectDeps(
       const minify = dep.minify ?? true;
       const dts = dep.dts ?? true;
 
-      const normalizedReadResult = readPackageMemoized(dep.name, cwd);
+      const { packageJson, filePath } = readPackageMemoized(dep.name, cwd);
 
       return {
         ...dep,
@@ -26,8 +26,9 @@ export function perfectDeps(
         outDir,
         minify,
         dts,
-        packageJson: normalizedReadResult?.packageJson,
-        packageJsonPath: normalizedReadResult?.filePath,
+        packageJson,
+        packageJsonDir: path.dirname(filePath),
+        packageJsonPath: filePath,
         externals: {
           ...externals,
           ...dep.externals,

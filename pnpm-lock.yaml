@@ -33,12 +33,18 @@ importers:
       just-compose:
         specifier: ^2.3.0
         version: 2.3.0
+      just-group-by:
+        specifier: ^2.2.0
+        version: 2.2.0
       just-memoize:
         specifier: ^2.2.0
         version: 2.2.0
       just-omit:
         specifier: ^2.2.0
         version: 2.2.0
+      just-pick:
+        specifier: ^4.2.0
+        version: 4.2.0
       read-pkg:
         specifier: ^7.1.0
         version: 7.1.0
@@ -3481,12 +3487,20 @@ packages:
     resolution: {integrity: sha512-HFtBU8GuHP+jHQN1ucJqpb+FpaWiLnLkUDXg7uTse2wdZOIQlOFsWwPE8PpAsmCbqHBq/XD7PovyF7y+OtcoVQ==}
     dev: false
 
+  /just-group-by@2.2.0:
+    resolution: {integrity: sha512-brZocDSmkvDYc+FOr07GiTar4cp7K6OB9huVOrj5LX+iXfCe3hTvn2KGM811LE/SBQkCzuYDDEcG8HA/dKDrnw==}
+    dev: false
+
   /just-memoize@2.2.0:
     resolution: {integrity: sha512-zriv+MY+61RXT0QsrO1ZJtL5umouqqSWmCGBkp2wJm35kniunBAA4qhUKx8Lvg/QcwrF9xuw9E6PkevKFf4boQ==}
     dev: false
 
   /just-omit@2.2.0:
     resolution: {integrity: sha512-Js7+HxDOGcB3RhI38Mird/RgyMf3t0DAJFda1QWqqlAKTa36NeSYIufJXxrZUbysFTRcTOFcoMCiFK5FwCoI7Q==}
+    dev: false
+
+  /just-pick@4.2.0:
+    resolution: {integrity: sha512-m6bi0P/gFq5GEQJGYfHFsdod6fogViNIhsKbPBYavqF9SKFfMKPz7kf6ROL2PblkOdaib9vN/wJ7VXhCJre5Hw==}
     dev: false
 
   /lightningcss-darwin-arm64@1.19.0:

@@ -23,6 +23,13 @@ import {
   calcDepsExternals,
   calcSelfExternals,
 } from "./utils/calc-externals.js";
+import compose from "just-compose";
+import {
+  conflictResolution,
+  depsToMap,
+  recursiveDepsToList,
+} from "./utils/deps.js";
+import groupBy from "just-group-by";
 
 const defaultConfig = {
   out: "compiled",
@@ -49,7 +56,7 @@ export async function stabilizer(
   const selfExternals = calcSelfExternals(packageJson);
 
   for (const dep of completeDeps) {
-    const { name, clean, outDir } = dep;
+    const { name, clean, outDir, packageJsonDir, dtsOnly, mode } = dep;
 
     if (clean) {
       fs.rmSync(outDir, { recursive: true, force: true });
@@ -62,7 +69,26 @@ export async function stabilizer(
       ...completeConfig.externals,
       ...depsExternals,
       ...dep.externals,
-    };
+    } as Record<string, string>;
+
+    conflictResolution(name, packageJsonDir, externals);
+
+    if (!dtsOnly) {
+      // js编译时 dtsOnly的dep需要从externals中移除
+      let bundleExternals = { ...externals };
+      completeDeps.forEach((dep) => {
+        if (dep.dtsOnly && bundleExternals[dep.name]) {
+          delete bundleExternals[dep.name];
+        }
+      });
+      if (mode === "bundless") {
+        // 复制 pkg
+        await copyPkg({ ...dep, externals: bundleExternals });
+      } else {
+        // 编译 pkg
+        await bundlePkg({ ...dep, externals: bundleExternals }, cwd);
+      }
+    }
   }
 
   // const preBuildConfig = getPreBuildConfig(cwd, deps);

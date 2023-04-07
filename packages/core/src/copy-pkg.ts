@@ -1,11 +1,16 @@
 import { transformFileAsync } from "@babel/core";
 import { globby } from "globby";
 import path from "node:path";
-import type { DepConfig } from "./types.js";
-import { _debug, uniq } from "./utils.js";
+import type { InlineDepConfig } from "./types.js";
+import { _debug } from "./utils.js";
 import bundlePkg from "./bundle-pkg.js";
-import { getModuleDeps, getPkgInfo, getPkgName } from "./utils.js";
+import { getModuleDeps } from "./utils.js";
 import fs from "node:fs";
+import { writePackageSync } from "write-pkg";
+import pick from "just-pick";
+import { readPackageMemoized } from "./utils/read-package.js";
+import { extractNpmScopeName } from "./utils/deps.js";
+import { uniq } from "./utils/uniq.js";
 
 /**
  * bundless 模式可能存在问题
@@ -18,8 +23,8 @@ import fs from "node:fs";
  *        (webpack预编译目前采用该策略,需要手动设置entry, 很多已经在 entry export,只是引用不规范)
  *  way3. 不修改 require, 不修改 entry, 单独编译 'xx/xx'到 path (文件可能变大)
  */
-const copyPkg = async (depConfig: DepConfig) => {
-  const { pkg, pkgPath, outDir, externals = {} } = depConfig;
+const copyPkg = async (depConfig: InlineDepConfig) => {
+  const { packageJson, packageJsonDir, outDir, externals = {} } = depConfig;
 
   // 1.复制 pkg
   // TODO: glob copy,
@@ -28,47 +33,30 @@ const copyPkg = async (depConfig: DepConfig) => {
       ignoreFiles: ["package.json", "readme.md", "changelog.md", "license"],
     })
   ).forEach((file) => {
-    const src = path.join(pkgPath, file);
+    const src = path.join(packageJsonDir, file);
     const dest = path.join(outDir, file);
     fs.copyFileSync(src, dest);
   });
 
-  // fse.copySync(pkgPath, outDir, {
-  //   overwrite: true,
-  //   filter: (src, dest) => {
-  //     if (fs.lstatSync(src).isDirectory()) true;
-  //     const filePath = src.replace(pkgPath + "/", "").toLowerCase();
-  //     if (filePath.startsWith("node_modules/")) return false;
-  //     const blackList = [
-  //       "package.json",
-  //       "readme.md",
-  //       "changelog.md",
-  //       "license",
-  //     ];
-  //     if (blackList.includes(filePath)) return false;
-  //     return true;
-  //   },
-  // });
-
   // 修改 package.json
-  fs.promises.writeFile(
+  writePackageSync(
     path.join(outDir, "package.json"),
-    JSON.stringify({
-      name: pkg.name,
-      version: pkg.version,
-      types: pkg.types || pkg.typings,
-      main: pkg.main,
-      module: pkg.module,
-      // @ts-ignore pnpm的定义缺失
-      exports: pkg.exports,
-      bin: pkg.bin,
-    }),
-    { encoding: "utf-8" }
+    pick(
+      packageJson,
+      "name",
+      "version",
+      "types",
+      "typings",
+      "main",
+      "module",
+      "exports",
+      "bin"
+    )
   );
 
-  const dependenciesExternals = Object.keys(pkg.dependencies || {}).reduce<
-    Record<string, string>
-  >((acc, dep) => {
+  const dependenciesExternals = Object.keys(
+    packageJson.dependencies || {}
+  ).reduce<Record<string, string>>((acc, dep) => {
     acc[dep] = `./${dep}`;
     return acc;
   }, {});
@@ -93,7 +81,7 @@ const copyPkg = async (depConfig: DepConfig) => {
         return acc;
       }, [])
       .filter((path) => !path.endsWith("/package.json"))
-      .filter((path) => dependenciesExternals[getPkgName(path)])
+      .filter((path) => dependenciesExternals[extractNpmScopeName(path)])
   );
 
   _debug("存在子路径依赖", subpathList);
@@ -101,7 +89,7 @@ const copyPkg = async (depConfig: DepConfig) => {
     subpathList.map(async (subpath) => {
       await bundlePkg({
         name: subpath,
-        entry: require.resolve(subpath, { paths: [pkgPath] }),
+        entry: require.resolve(subpath, { paths: [packageJsonDir] }),
         output: path.join(outDir, `${subpath}.js`),
         externals: exchangeExternals(pkgExternals),
       });
@@ -131,19 +119,20 @@ const copyPkg = async (depConfig: DepConfig) => {
 
   // 3.编译依赖
   await Promise.all(
-    Object.keys(pkg.dependencies || {})
+    Object.keys(packageJson.dependencies || {})
       .filter((dep) => !externals[dep] && !dep.startsWith("@types/"))
       .map(async (dep) => {
         //
-        const depInfo = getPkgInfo(dep, pkgPath);
+
+        const depInfo = readPackageMemoized(dep, packageJsonDir);
         if (!depInfo) {
-          throw new Error(`在${pkgPath}未找到${dep}信息`);
+          throw new Error(`在${packageJsonDir}未找到${dep}信息`);
         }
 
         await bundlePkg({
           name: dep,
           pkg: depInfo.packageJson,
-          entry: require.resolve(dep, { paths: [pkgPath] }),
+          entry: require.resolve(dep, { paths: [packageJsonDir] }),
           output: path.join(outDir, dep, "index.js"),
           externals: exchangeExternals(pkgExternals, dep),
           minify: true,
