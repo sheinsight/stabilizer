@@ -1,6 +1,6 @@
 import path from "node:path";
 import { StabilizerConfig, UserDepConfig } from "../types.js";
-import { getPkgInfo } from "../utils.js";
+import { readPackageMemoized } from "./read-package.js";
 
 export function perfectDeps(
   deps: (string | UserDepConfig)[],
@@ -18,7 +18,7 @@ export function perfectDeps(
       const minify = dep.minify ?? true;
       const dts = dep.dts ?? true;
 
-      const normalizedReadResult = getPkgInfo(dep.name, cwd);
+      const normalizedReadResult = readPackageMemoized(dep.name, cwd);
 
       return {
         ...dep,
@@ -27,11 +27,12 @@ export function perfectDeps(
         minify,
         dts,
         packageJson: normalizedReadResult?.packageJson,
-        packageJsonPath: normalizedReadResult?.path,
+        packageJsonPath: normalizedReadResult?.filePath,
         externals: {
           ...externals,
           ...dep.externals,
         },
+        clean: dep.clean ?? true,
       };
     });
 }

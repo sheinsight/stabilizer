@@ -26,6 +26,7 @@ export interface UserDepConfig {
    * @default {}
    */
   externals?: Record<string, string>;
+  clean?: boolean;
 }
 
 export type PartialRequired<O, K extends keyof O> = Omit<O, K> &

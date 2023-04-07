@@ -19,7 +19,10 @@ import { StabilizerConfig, UserDepConfig } from "./types.js";
 import process from "node:process";
 import { measure } from "./utils/measure.js";
 import { perfectDeps } from "./utils/perfect-deps.js";
-import { calcSelfExternals } from "./utils/calc-externals.js";
+import {
+  calcDepsExternals,
+  calcSelfExternals,
+} from "./utils/calc-externals.js";
 
 const defaultConfig = {
   out: "compiled",
@@ -44,6 +47,23 @@ export async function stabilizer(
   const completeDeps = perfectDeps(deps, completeConfig);
 
   const selfExternals = calcSelfExternals(packageJson);
+
+  for (const dep of completeDeps) {
+    const { name, clean, outDir } = dep;
+
+    if (clean) {
+      fs.rmSync(outDir, { recursive: true, force: true });
+    }
+
+    const depsExternals = calcDepsExternals(name, completeDeps, completeConfig);
+
+    const externals = {
+      ...selfExternals,
+      ...completeConfig.externals,
+      ...depsExternals,
+      ...dep.externals,
+    };
+  }
 
   // const preBuildConfig = getPreBuildConfig(cwd, deps);
   // debug(`实际prebuild配置文件: %O`, preBuildConfig);

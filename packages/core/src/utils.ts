@@ -1,4 +1,3 @@
-import { readPackageUpSync } from "read-pkg-up";
 import compose from "just-compose";
 import memoize from "just-memoize";
 import semver from "semver";
@@ -8,9 +7,9 @@ import { builtinModules } from "node:module";
 import path from "node:path";
 import type { DepPkgInfo } from "./types.js";
 import * as babel from "@babel/core";
+import { readPackage, readPackageMemoized } from "./utils/read-package.js";
 export const _debug = debug(`@shined/stabilizer`);
 
-export const uniq = (arr: string[]) => Array.from(new Set(arr));
 // xxx.js -> xxx.d.ts 兼容 node esm 格式
 const createDtsPath = (filePath: string) =>
   filePath
@@ -44,45 +43,6 @@ export const getPkgName = (moduleName: string) => {
 
 const memoResolver = (...args: any[]) => JSON.stringify(args);
 
-export const getPkgInfo = memoize((pkgName: string, cwd: string) => {
-  try {
-    let pkgEntry = "";
-
-    // @pnpm/types/package.json 不能解析
-    // type-fest 没有 main js 文件
-    // 先找 main, 会出现类似terser的 有多余的 package.json.错误的版本
-    // 先找 package.json, 有部分 exports字段的 package.json 有 warning [DEP0148]
-    try {
-      const name = isBuildInModule(pkgName) ? `${pkgName}/` : pkgName;
-      pkgEntry = require.resolve(name, { paths: [cwd] });
-    } catch (error) {
-      pkgEntry = require.resolve(`${pkgName}/package.json`, { paths: [cwd] });
-    }
-
-    let normalizedReadResult;
-
-    normalizedReadResult = readPackageUpSync({
-      cwd: path.dirname(pkgEntry),
-    })!;
-
-    // 加一次校验 fix terser 的错误路径.
-    // 不能判断 pkg.name !== pkgName, 可能导致 aa4: npm:aa@4, 寻找错误
-    if (normalizedReadResult?.packageJson?.private === true) {
-      normalizedReadResult = readPackageUpSync({
-        cwd: path.resolve(normalizedReadResult?.path, "../../"),
-      })!;
-    }
-
-    return {
-      path: path.dirname(normalizedReadResult?.path!),
-      packageJson: normalizedReadResult?.packageJson,
-    };
-  } catch (error) {
-    // console.log(error, pkgName, cwd);
-    throw error;
-  }
-}, memoResolver);
-
 const getTypesPkgInfo = memoize((pkgName: string, cwd: string) => {
   // @types/xxx: @babel/core -> @types/babel__core
   const typesPkgName = `@types/${pkgName.replace("@", "").replace("/", "__")}`;
@@ -91,7 +51,7 @@ const getTypesPkgInfo = memoize((pkgName: string, cwd: string) => {
   // index -> index.d.ts ?? 可以从mainDtsPath 取后缀
   // yargs: types.exports 都有类型. 同时支持 mts,cts. 测试好素材
 
-  const res = getPkgInfo(typesPkgName, cwd);
+  const res = readPackageMemoized(typesPkgName, cwd);
   if (!res) {
     // TODO: 不关闭 dts.就报 warn
     // `npm view ${typesPkgName} name`?? 有的话提示安装??
@@ -99,7 +59,7 @@ const getTypesPkgInfo = memoize((pkgName: string, cwd: string) => {
     return;
   }
 
-  const { packageJson: typePkg, path: typePkgPath } = res;
+  const { packageJson: typePkg, filePath: typePkgPath } = res;
   const types = getDtsPathFormPkg(typePkg)!;
   return {
     fullPath: path.join(typePkgPath, types),
@@ -118,7 +78,7 @@ export const getPkgDtsPath = (
   pkgName: string,
   cwd: string
 ): PkgDtsInfo | undefined => {
-  const res = getPkgInfo(pkgName, cwd);
+  const res = readPackageMemoized(pkgName, cwd);
   if (!res) {
     // dts文件. 可能直接引用 @types/xxx, 找不到 xxx
     // 如: @babel-core的index.d.ts 引用 @babel/template 实际是 @types/babel__template
@@ -129,8 +89,8 @@ export const getPkgDtsPath = (
   const dtsPath = getDtsPathFormPkg(res.packageJson);
   if (dtsPath) {
     return {
-      fullPath: path.join(res.path, dtsPath),
-      pkgPath: res.path,
+      fullPath: path.join(res.filePath, dtsPath),
+      pkgPath: res.filePath,
       types: dtsPath,
     };
   }
@@ -170,7 +130,7 @@ const getPkgAllDeps = (
   cwd: string,
   list: Set<string> = new Set([])
 ) => {
-  const info = getPkgInfo(pkgName, cwd);
+  const info = readPackageMemoized(pkgName, cwd);
   if (!info) return list;
   const dependencies = Object.entries(info.packageJson.dependencies || {}).map(
     ([name, version]) => `${name}@${version}`
@@ -182,7 +142,7 @@ const getPkgAllDeps = (
     if (list.has(dep)) return;
     list.add(dep);
     const { name, version } = /(?<name>.+)@(?<version>.+)/.exec(dep)!.groups!;
-    const allDeps = getPkgAllDeps(name, info.path, list);
+    const allDeps = getPkgAllDeps(name, info.filePath, list);
     allDeps.forEach((dep) => list.add(dep));
   });
 
@@ -225,8 +185,6 @@ export const checkExternals = (
   externals: Record<string, string>,
   rootPkgPath: string
 ) => {
-  // console.log(allDeps, externals);
-
   const notSatisfiesList: {
     name: string;
     externalVersion: string;
@@ -240,14 +198,14 @@ export const checkExternals = (
     const getExternalVersion = (name: string, value: string) => {
       // 'chokidar','../chokidar','../../chokidar'
       if (name === value || value.endsWith(`../${name}`)) {
-        return getPkgInfo(name, rootPkgPath)?.packageJson.version;
+        return readPackageMemoized(name, rootPkgPath)?.packageJson.version;
       }
 
       // 自定义外部路径 @shein-lego/xx/compiled/chokidar -> @shein-lego/xx
       const pkgName = getPkgName(value);
-      const pkgPath = getPkgInfo(pkgName, rootPkgPath)?.path;
+      const pkgPath = readPackageMemoized(pkgName, rootPkgPath)?.filePath;
       if (!pkgPath) return;
-      return getPkgInfo(pkgName, pkgPath)?.packageJson.version;
+      return readPackageMemoized(pkgName, pkgPath)?.packageJson.version;
     };
 
     const externalVersion = getExternalVersion(name, value);
