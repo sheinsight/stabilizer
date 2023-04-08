@@ -3,11 +3,10 @@ import memoize from "just-memoize";
 import semver from "semver";
 import fs from "node:fs";
 import debug from "debug";
-import { builtinModules } from "node:module";
 import path from "node:path";
 import type { DepPkgInfo } from "./types.js";
 import * as babel from "@babel/core";
-import { readPackage, readPackageMemoized } from "./utils/read-package.js";
+import { readPackageMemoized } from "./utils/read-package.js";
 import { extractNpmScopeName } from "./utils/deps.js";
 export const _debug = debug(`@shined/stabilizer`);
 
@@ -27,9 +26,6 @@ const getDtsPathFormPkg = (pkg: DepPkgInfo) => {
   }
   return dtsPath as string;
 };
-
-export const isBuildInModule = (pkgName: string) =>
-  builtinModules.includes(pkgName.replace(/^node:/, ""));
 
 const memoResolver = (...args: any[]) => JSON.stringify(args);
 

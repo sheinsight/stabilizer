@@ -39,7 +39,22 @@ export interface UserDepConfig {
    */
   dtsOnly?: boolean;
   noBundle?: NoBundle;
+  /**
+   * 编译后执行的patch操作
+   * - 需要额外复制的文件
+   */
+  patch?: Patch;
 }
+
+export type PkgDtsInfo = {
+  fullPath: string;
+  pkgPath: string;
+  types: string;
+};
+
+type Patch = (
+  options: UserDepConfig & { outDtsPath?: string; pkgDtsInfo?: PkgDtsInfo }
+) => Promise<void> | void;
 
 export type PartialRequired<O, K extends keyof O> = Omit<O, K> &
   Required<Pick<O, K>>;

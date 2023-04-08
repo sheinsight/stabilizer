@@ -1,4 +1,3 @@
-import chalk from "chalk";
 import deepmerge from "deepmerge";
 import { readPackageUpSync } from "read-pkg-up";
 import fs from "node:fs";
@@ -9,12 +8,7 @@ import { _debug } from "./utils.js";
 import bundlePkg from "./bundle-pkg.js";
 import copyPkgDts from "./copy-dts.js";
 import copyPkg from "./copy-pkg.js";
-import {
-  checkExternals,
-  getPkgAllDepsMap,
-  getPkgDtsPath,
-  getPkgInfo,
-} from "./utils.js";
+import { checkExternals, getPkgAllDepsMap, getPkgDtsPath } from "./utils.js";
 import { StabilizerConfig, UserDepConfig } from "./types.js";
 import process from "node:process";
 import { measure } from "./utils/measure.js";
@@ -23,13 +17,8 @@ import {
   calcDepsExternals,
   calcSelfExternals,
 } from "./utils/calc-externals.js";
-import compose from "just-compose";
-import {
-  conflictResolution,
-  depsToMap,
-  recursiveDepsToList,
-} from "./utils/deps.js";
-import groupBy from "just-group-by";
+import { conflictResolution } from "./utils/deps.js";
+import resolveFrom from "resolve-from";
 
 const defaultConfig = {
   out: "compiled",
@@ -55,8 +44,9 @@ export async function stabilizer(
 
   const selfExternals = calcSelfExternals(packageJson);
 
-  for (const dep of completeDeps) {
-    const { name, clean, outDir, packageJsonDir, dtsOnly, mode } = dep;
+  for (const depConfig of completeDeps) {
+    const { name, clean, outDir, packageJsonDir, dtsOnly, mode, patch, dts } =
+      depConfig;
 
     if (clean) {
       fs.rmSync(outDir, { recursive: true, force: true });
@@ -68,7 +58,7 @@ export async function stabilizer(
       ...selfExternals,
       ...completeConfig.externals,
       ...depsExternals,
-      ...dep.externals,
+      ...depConfig.externals,
     } as Record<string, string>;
 
     conflictResolution(name, packageJsonDir, externals);
@@ -83,161 +73,15 @@ export async function stabilizer(
       });
       if (mode === "bundless") {
         // 复制 pkg
-        await copyPkg({ ...dep, externals: bundleExternals });
+        await copyPkg({ ...depConfig, externals: bundleExternals });
       } else {
         // 编译 pkg
-        await bundlePkg({ ...dep, externals: bundleExternals }, cwd);
+        await bundlePkg(resolveFrom(cwd, depConfig.name), {
+          ...depConfig,
+          externals: bundleExternals,
+        });
       }
     }
-  }
-
-  // const preBuildConfig = getPreBuildConfig(cwd, deps);
-  // debug(`实际prebuild配置文件: %O`, preBuildConfig);
-
-  // logger.event("🚀 开始预编译");
-  // const { duration } = await measure(() => prebuild(preBuildConfig, config));
-  // logger.event(`⏳ 预编译耗时:${duration}ms`);
-}
-
-/**
- * 依赖预编译(打包)
- * - js -> index.js
- * - types -> index.d.ts
- */
-const init = async (config: IConfig) => {
-  const { cwd } = config;
-  const logger = createLogger("", config.logLevel);
-
-  const userConfig = await getUserConfig(cwd, logger);
-  _debug(`用户prebuild配置文件: %O`, userConfig.prebuild);
-
-  if (!userConfig.prebuild) {
-    logger.error("未找到prebuild相关配置");
-    return;
-  }
-
-  const preBuildConfig = getPreBuildConfig(cwd, userConfig.prebuild, logger);
-  debug(`实际prebuild配置文件: %O`, preBuildConfig);
-
-  logger.event("🚀 开始预编译");
-  const { duration } = await measure(() => prebuild(preBuildConfig, config));
-  logger.event(`⏳ 预编译耗时:${duration}ms`);
-};
-
-const getPreBuildConfig = (cwd: string, deps: string[]) => {
-  const defaultConfig: PreBuildUserConfig = {
-    output: "compiled",
-    deps: [],
-    externals: {},
-  };
-
-  // string -> {name: string}
-  const _deps = deps.map((dep) => {
-    if (typeof dep === "string") return { name: dep };
-    return dep;
-  });
-
-  const prebuildConfig = deepmerge(defaultConfig, config) as PreBuildConfig;
-
-  prebuildConfig.pkg = readPackageUpSync({ cwd })!.packageJson;
-
-  prebuildConfig.deps = prebuildConfig.deps.map((dep) => {
-    dep.output = path.join(cwd, prebuildConfig.output, dep.name, "index.js"); // 根据 entry 后缀, type === 'module'??
-    dep.outDir = path.dirname(dep.output);
-    dep.minify = dep.minify ?? true;
-    dep.dts = dep.dts ?? true;
-
-    const res = getPkgInfo(dep.name, cwd);
-    if (res) {
-      dep.pkg = res.pkg;
-      dep.pkgPath = res.pkgPath;
-      // dep.dtsPath = getPkgDtsPath(dep.name, cwd);
-    }
-
-    return dep;
-  });
-
-  return prebuildConfig;
-};
-
-const prebuild = async (config: PreBuildConfig, { logLevel, cwd }: IConfig) => {
-  const globalExternals = Object.keys({
-    ...config.pkg.dependencies,
-    ...config.pkg.peerDependencies,
-  }).reduce((acc, dep) => {
-    acc[dep] = dep;
-    return acc;
-  }, {} as Record<string, string>);
-
-  // deps in rootDeps -> external
-  for (const depConfig of config.deps) {
-    // pkg.name 和 name 可能不相同(存在 "jest-worker29": "npm:jest-worker@^29", name 是jest-worker29, pkg.name 是jest-worker)
-    const {
-      name,
-      pkgPath,
-      mode,
-      outDir,
-      dts,
-      patch,
-      dtsOnly,
-      clean = true,
-    } = depConfig;
-
-    // 编译前删除文件夹
-    if (clean) {
-      fs.rmSync(outDir, { recursive: true, force: true });
-    }
-
-    // deps 内部依赖 根据入口文件位置  compiled/xxx 位置 算相对路径
-    const compiledExternals = config.deps.reduce((acc, dep) => {
-      if (name !== dep.name) {
-        acc[dep.name] = path.relative(
-          path.join(cwd, config.output, name),
-          path.join(cwd, config.output, dep.name)
-        );
-      } else {
-        acc[dep.name] = `../${name}`; // dts可能存在注释需要,不能再此处删除自身Externals
-      }
-
-      return acc;
-    }, {} as Record<string, string>);
-
-    const externals = {
-      ...globalExternals,
-      ...config.externals,
-      ...compiledExternals,
-      ...depConfig.externals,
-    };
-
-    // 检查 externals
-    const allDeps = getPkgAllDepsMap(name, pkgPath);
-    const notSatisfiesList = checkExternals(allDeps, externals, cwd);
-    notSatisfiesList.forEach((item) => {
-      // logger.warn(
-      //   `${item.name}的版本 ${item.externalVersion} 和子依赖的版本 ${item.depVersions} 依赖冲突,将从externals中移除`
-      // );
-      delete externals[item.name];
-    });
-
-    if (!dtsOnly) {
-      // js编译时 dtsOnly的dep需要从externals中移除
-      let bundleExternals = { ...externals };
-      config.deps.forEach((dep) => {
-        if (dep.dtsOnly && bundleExternals[dep.name]) {
-          delete bundleExternals[dep.name];
-        }
-      });
-      if (mode === "bundless") {
-        // 复制 pkg
-        await copyPkg({ ...depConfig, externals: bundleExternals }, logger);
-      } else {
-        // 编译 pkg
-        await bundlePkg({ ...depConfig, externals: bundleExternals }, cwd);
-      }
-    }
-
-    // https://github.com/vercel/ncc/blob/main/src/cli.js#L284
-    // ncc cli 有对 symlinks 的处理.待研究是否需要
 
     let dtsInfo = undefined;
 
@@ -265,34 +109,34 @@ const prebuild = async (config: PreBuildConfig, { logLevel, cwd }: IConfig) => {
         // 复写 package.json 的 types
         if (
           types &&
-          !["index.d.ts", depConfig.pkg.types, depConfig.pkg.typings].includes(
-            types
-          )
+          ![
+            "index.d.ts",
+            depConfig.packageJson.types,
+            depConfig.packageJson.typings,
+          ].includes(types)
         ) {
-          const data = readPackageSync(outDir);
+          const data = readPackageSync({ cwd: outDir });
           data.types = types;
           writePackageSync(outDir, data);
         }
       }
-    }
 
-    // - 复制额外的文件,指向 index.js. 如何寻找(暂时只能人肉)??
-    // - assets 替换 require 相关路径
-    // - 修复 dts: 如 export = less 去除 declare module "less" 包裹
-    if (patch) {
-      try {
-        await patch({
-          ...depConfig,
-          outDtsPath: dtsInfo?.types
-            ? path.join(outDir, dtsInfo.types)
-            : undefined,
-          pkgDtsInfo: dtsInfo,
-        });
-      } catch (error) {
-        // logger.warn(error);
+      // - 复制额外的文件,指向 index.js. 如何寻找(暂时只能人肉)??
+      // - assets 替换 require 相关路径
+      // - 修复 dts: 如 export = less 去除 declare module "less" 包裹
+      if (patch) {
+        try {
+          await patch({
+            ...depConfig,
+            outDtsPath: dtsInfo?.types
+              ? path.join(outDir, dtsInfo.types)
+              : undefined,
+            pkgDtsInfo: dtsInfo,
+          });
+        } catch (error) {
+          // logger.warn(error);
+        }
       }
     }
   }
-};
-
-export default init;
+}

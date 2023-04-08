@@ -7,28 +7,16 @@ import { writeJsonFileSync } from "write-json-file";
 import pick from "just-pick";
 
 type BundlePkgOption = Omit<
-  Pick<InlineDepConfig, "name" | "output" | "entry"> &
-    Partial<Pick<InlineDepConfig, "pkg" | "minify" | "externals" | "noBundle">>,
+  Pick<InlineDepConfig, "name" | "output"> &
+    Partial<
+      Pick<InlineDepConfig, "packageJson" | "minify" | "externals" | "noBundle">
+    >,
   never
 >;
 
-const bundlePkg = async (options: InlineDepConfig, cwd?: string) => {
+const bundlePkg = async (entry: string, depConfig: BundlePkgOption) => {
   // pkg.name 和 name 可能不相同(存在 "jest-worker29": "npm:jest-worker@^29", name 是jest-worker29, pkg.name 是jest-worker)
-  const {
-    name,
-    output,
-    externals,
-    minify = true,
-    packageJson,
-    entry: depEntry,
-  } = options;
-  let entry: string;
-  // bundless模式下子包提前处理了entry 这里就不需要再处理了
-  if (depEntry && path.isAbsolute(depEntry)) {
-    entry = depEntry;
-  } else {
-    entry = require.resolve(depEntry || name, { paths: [cwd!] });
-  }
+  const { name, output, externals, minify = true, packageJson } = depConfig;
 
   const outDir = path.dirname(output);
 
@@ -52,7 +40,7 @@ const bundlePkg = async (options: InlineDepConfig, cwd?: string) => {
         fs.copyFileSync(absFilePath, outPath);
       };
 
-      if (options.noBundle?.({ filePath, id, pkgName: name })) {
+      if (depConfig.noBundle?.({ filePath, id, pkgName: name })) {
         copyFile();
         // transform
         return `'./${path.basename(filePath)}'`;

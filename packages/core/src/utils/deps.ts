@@ -75,17 +75,3 @@ export function conflictResolution(
     }
   }
 }
-
-function conflictFactory(cwd: string, externals: Record<string, string>) {
-  return function conflict(deps: Record<string, string[]>) {
-    const entries = Object.entries(externals);
-    for (const [name, version] of entries) {
-      const depVersions = deps[name];
-      if (depVersions) {
-        // TODO
-      }
-    }
-  };
-}
-
-const _ = compose(recursiveDepsToList, depsToMap);

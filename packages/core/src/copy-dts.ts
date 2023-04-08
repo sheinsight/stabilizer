@@ -3,12 +3,9 @@ import { readPackageUpSync } from "read-pkg-up";
 import fs from "node:fs";
 import path from "node:path";
 import { _debug } from "./utils.js";
-import {
-  getPkgDtsPath,
-  getPkgName,
-  isBuildInModule,
-  type PkgDtsInfo,
-} from "./utils.js";
+import { getPkgDtsPath, type PkgDtsInfo } from "./utils.js";
+import { extractNpmScopeName } from "./utils/deps.js";
+import isBuiltInModule from "is-builtin-module";
 
 // 缓存对性能提升几乎没影响😭, 暂时只能减少重复的错误日志
 const DtsCacheMap = new Map();
@@ -167,10 +164,10 @@ const replaceImport = (options: {
     /(?<prefix>\/\/\/ +<reference +(path|types)=)(?<quota>['"])(?<name>[^'"]+)['"] +(?<suffix>\/>)/g;
 
   const getRealPath = (path: string) => {
-    const name = getPkgName(path);
+    const name = extractNpmScopeName(path);
     const subpath = path.split(name)[1];
 
-    if (isBuildInModule(name) || name === "node") return name;
+    if (isBuiltInModule(name) || name === "node") return name;
 
     // 本地模块
     if (name.startsWith(".")) {

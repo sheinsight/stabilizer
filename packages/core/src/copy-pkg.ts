@@ -11,7 +11,7 @@ import pick from "just-pick";
 import { readPackageMemoized } from "./utils/read-package.js";
 import { extractNpmScopeName } from "./utils/deps.js";
 import { uniq } from "./utils/uniq.js";
-
+import resolveFrom from "resolve-from";
 /**
  * bundless 模式可能存在问题
  * - 子依赖包也不是干净的包(externals, 加 patch ?)
@@ -87,9 +87,9 @@ const copyPkg = async (depConfig: InlineDepConfig) => {
   _debug("存在子路径依赖", subpathList);
   await Promise.all(
     subpathList.map(async (subpath) => {
-      await bundlePkg({
+      const entry = resolveFrom(packageJsonDir, subpath);
+      await bundlePkg(entry, {
         name: subpath,
-        entry: require.resolve(subpath, { paths: [packageJsonDir] }),
         output: path.join(outDir, `${subpath}.js`),
         externals: exchangeExternals(pkgExternals),
       });
@@ -128,11 +128,10 @@ const copyPkg = async (depConfig: InlineDepConfig) => {
         if (!depInfo) {
           throw new Error(`在${packageJsonDir}未找到${dep}信息`);
         }
-
-        await bundlePkg({
+        const entry = resolveFrom(packageJsonDir, dep);
+        await bundlePkg(entry, {
           name: dep,
-          pkg: depInfo.packageJson,
-          entry: require.resolve(dep, { paths: [packageJsonDir] }),
+          packageJson: depInfo.packageJson,
           output: path.join(outDir, dep, "index.js"),
           externals: exchangeExternals(pkgExternals, dep),
           minify: true,
