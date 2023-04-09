@@ -24,7 +24,7 @@ import resolveFrom from "resolve-from";
  *  way3. 不修改 require, 不修改 entry, 单独编译 'xx/xx'到 path (文件可能变大)
  */
 const copyPkg = async (depConfig: InlineDepConfig) => {
-  const { packageJson, packageJsonDir, outDir, externals = {} } = depConfig;
+  const { packageReadResult, outDir, externals = {} } = depConfig;
 
   // 1.复制 pkg
   // TODO: glob copy,
@@ -33,6 +33,8 @@ const copyPkg = async (depConfig: InlineDepConfig) => {
       ignoreFiles: ["package.json", "readme.md", "changelog.md", "license"],
     })
   ).forEach((file) => {
+    const packagePath = packageReadResult?.path;
+    const packageJsonDir = path.dirname(packagePath);
     const src = path.join(packageJsonDir, file);
     const dest = path.join(outDir, file);
     fs.copyFileSync(src, dest);
@@ -42,7 +44,7 @@ const copyPkg = async (depConfig: InlineDepConfig) => {
   writePackageSync(
     path.join(outDir, "package.json"),
     pick(
-      packageJson,
+      packageReadResult?.packageJson,
       "name",
       "version",
       "types",
@@ -55,7 +57,7 @@ const copyPkg = async (depConfig: InlineDepConfig) => {
   );
 
   const dependenciesExternals = Object.keys(
-    packageJson.dependencies || {}
+    packageReadResult?.packageJson.dependencies || {}
   ).reduce<Record<string, string>>((acc, dep) => {
     acc[dep] = `./${dep}`;
     return acc;
@@ -87,6 +89,7 @@ const copyPkg = async (depConfig: InlineDepConfig) => {
   _debug("存在子路径依赖", subpathList);
   await Promise.all(
     subpathList.map(async (subpath) => {
+      const packageJsonDir = path.dirname(packageReadResult?.path);
       const entry = resolveFrom(packageJsonDir, subpath);
       await bundlePkg(entry, {
         name: subpath,
@@ -119,10 +122,11 @@ const copyPkg = async (depConfig: InlineDepConfig) => {
 
   // 3.编译依赖
   await Promise.all(
-    Object.keys(packageJson.dependencies || {})
+    Object.keys(packageReadResult?.packageJson.dependencies || {})
       .filter((dep) => !externals[dep] && !dep.startsWith("@types/"))
       .map(async (dep) => {
         //
+        const packageJsonDir = path.dirname(packageReadResult?.path);
 
         const depInfo = readPackageMemoized(dep, packageJsonDir);
         if (!depInfo) {
@@ -131,7 +135,7 @@ const copyPkg = async (depConfig: InlineDepConfig) => {
         const entry = resolveFrom(packageJsonDir, dep);
         await bundlePkg(entry, {
           name: dep,
-          packageJson: depInfo.packageJson,
+          packageReadResult: depInfo,
           output: path.join(outDir, dep, "index.js"),
           externals: exchangeExternals(pkgExternals, dep),
           minify: true,

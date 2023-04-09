@@ -18,7 +18,11 @@ export function perfectDeps(
       const minify = dep.minify ?? true;
       const dts = dep.dts ?? true;
 
-      const { packageJson, filePath } = readPackageMemoized(dep.name, cwd);
+      const readResult = readPackageMemoized(dep.name, cwd);
+
+      if (!readResult) {
+        throw new Error("Package not found: " + dep.name);
+      }
 
       return {
         ...dep,
@@ -26,9 +30,7 @@ export function perfectDeps(
         outDir,
         minify,
         dts,
-        packageJson,
-        packageJsonDir: path.dirname(filePath),
-        packageJsonPath: filePath,
+        packageReadResult: readResult,
         externals: {
           ...externals,
           ...dep.externals,

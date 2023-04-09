@@ -1,16 +1,17 @@
 import { NormalizedPackageJson } from "read-pkg";
+import { NormalizedReadResult } from "read-pkg-up";
 import { PackageJson } from "type-fest";
 
 export interface StabilizerConfig {
   /**
    * @default compiled
    */
-  out: string;
+  out?: string;
 
   /**
    * @default process.cwd()
    */
-  cwd: string;
+  cwd?: string;
 
   /**
    * @default {}
@@ -67,8 +68,7 @@ export type DepPkgInfo = PartialRequired<
 export interface InlineDepConfig extends UserDepConfig {
   output: string;
   outDir: string;
-  packageJson: NormalizedPackageJson;
-  packageJsonDir: string;
+  packageReadResult: NormalizedReadResult;
 }
 
 type NoBundle = (config: {

@@ -8,10 +8,9 @@ import { _debug } from "./utils.js";
 import bundlePkg from "./bundle-pkg.js";
 import copyPkgDts from "./copy-dts.js";
 import copyPkg from "./copy-pkg.js";
-import { checkExternals, getPkgAllDepsMap, getPkgDtsPath } from "./utils.js";
+import { getPkgDtsPath } from "./utils.js";
 import { StabilizerConfig, UserDepConfig } from "./types.js";
 import process from "node:process";
-import { measure } from "./utils/measure.js";
 import { perfectDeps } from "./utils/perfect-deps.js";
 import {
   calcDepsExternals,
@@ -28,9 +27,9 @@ const defaultConfig = {
 
 export async function stabilizer(
   deps: (string | UserDepConfig)[],
-  config: StabilizerConfig
+  config?: StabilizerConfig
 ) {
-  const completeConfig = deepmerge(defaultConfig, config);
+  const completeConfig = deepmerge(defaultConfig, config ?? {});
 
   const { cwd } = completeConfig;
 
@@ -45,8 +44,16 @@ export async function stabilizer(
   const selfExternals = calcSelfExternals(packageJson);
 
   for (const depConfig of completeDeps) {
-    const { name, clean, outDir, packageJsonDir, dtsOnly, mode, patch, dts } =
-      depConfig;
+    const {
+      name,
+      clean,
+      outDir,
+      packageReadResult,
+      dtsOnly,
+      mode,
+      patch,
+      dts,
+    } = depConfig;
 
     if (clean) {
       fs.rmSync(outDir, { recursive: true, force: true });
@@ -60,6 +67,8 @@ export async function stabilizer(
       ...depsExternals,
       ...depConfig.externals,
     } as Record<string, string>;
+
+    const packageJsonDir = path.dirname(packageReadResult.path);
 
     conflictResolution(name, packageJsonDir, externals);
 
@@ -111,8 +120,8 @@ export async function stabilizer(
           types &&
           ![
             "index.d.ts",
-            depConfig.packageJson.types,
-            depConfig.packageJson.typings,
+            depConfig.packageReadResult.packageJson.types,
+            depConfig.packageReadResult.packageJson.typings,
           ].includes(types)
         ) {
           const data = readPackageSync({ cwd: outDir });

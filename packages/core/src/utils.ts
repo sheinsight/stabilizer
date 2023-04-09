@@ -45,8 +45,10 @@ const getTypesPkgInfo = memoize((pkgName: string, cwd: string) => {
     return;
   }
 
-  const { packageJson: typePkg, filePath: typePkgPath } = res;
+  const { packageJson: typePkg, path: typePkgPath } = res;
   const types = getDtsPathFormPkg(typePkg)!;
+  console.log("--->", path.join(typePkgPath, types));
+
   return {
     fullPath: path.join(typePkgPath, types),
     pkgPath: typePkgPath,
@@ -74,9 +76,10 @@ export const getPkgDtsPath = (
   // inner
   const dtsPath = getDtsPathFormPkg(res.packageJson);
   if (dtsPath) {
+    const dir = path.dirname(res.path);
     return {
-      fullPath: path.join(res.filePath, dtsPath),
-      pkgPath: res.filePath,
+      fullPath: path.join(dir, dtsPath),
+      pkgPath: res.path,
       types: dtsPath,
     };
   }
@@ -128,82 +131,11 @@ const getPkgAllDeps = (
     if (list.has(dep)) return;
     list.add(dep);
     const { name, version } = /(?<name>.+)@(?<version>.+)/.exec(dep)!.groups!;
-    const allDeps = getPkgAllDeps(name, info.filePath, list);
+    const allDeps = getPkgAllDeps(name, info.path, list);
     allDeps.forEach((dep) => list.add(dep));
   });
 
   return list;
-};
-
-// Set name@version -> Object name: [versions]
-const depListToMap = (list: Set<string>) => {
-  return [...list].reduce<Record<string, string[]>>((acc, dep) => {
-    const { name, version } = /(?<name>.+)@(?<version>.+)/.exec(dep)!.groups!;
-    acc[name] = acc[name] ? [version].concat(acc[name]) : [version];
-    return acc;
-  }, {});
-};
-
-export const getPkgAllDepsMap = compose(getPkgAllDeps, depListToMap);
-
-const getIsSatisfies = (depVersions: string[], externalsVersion: string) => {
-  // &&
-  const isSatisfies = depVersions
-    ?.map((item) => item.replace("workspace:", ""))
-    ?.every((v) => semver.satisfies(externalsVersion, v));
-
-  // ||
-  // const isSatisfies = semver.satisfies(
-  //   semver.minVersion(externalsVersion)!,
-  //   depVersions.join(' || '),
-  // );
-
-  return isSatisfies;
-};
-
-// externals的版本号是否满足
-// 1. 当前包的所有子依赖(递归)
-// 2. externals -> 对应版本号(指向外部模块??)
-// 3. semver 比较版本.不满足给与提示. 去除相应的externals直接打包进来
-// 4. 是否考虑semver不满足(实际功能满足),也继续使用externals的选项
-export const checkExternals = (
-  allDeps: Record<string, string[]>,
-  externals: Record<string, string>,
-  rootPkgPath: string
-) => {
-  const notSatisfiesList: {
-    name: string;
-    externalVersion: string;
-    depVersions: string[];
-  }[] = [];
-
-  Object.entries(externals).forEach(([name, value]) => {
-    const depVersions = allDeps[name];
-    if (!depVersions) return;
-
-    const getExternalVersion = (name: string, value: string) => {
-      // 'chokidar','../chokidar','../../chokidar'
-      if (name === value || value.endsWith(`../${name}`)) {
-        return readPackageMemoized(name, rootPkgPath)?.packageJson.version;
-      }
-
-      // 自定义外部路径 @shein-lego/xx/compiled/chokidar -> @shein-lego/xx
-      const pkgName = extractNpmScopeName(value);
-      const pkgPath = readPackageMemoized(pkgName, rootPkgPath)?.filePath;
-      if (!pkgPath) return;
-      return readPackageMemoized(pkgName, pkgPath)?.packageJson.version;
-    };
-
-    const externalVersion = getExternalVersion(name, value);
-    if (!externalVersion) return;
-
-    const isSatisfies = getIsSatisfies(depVersions, externalVersion);
-    if (isSatisfies) return;
-
-    notSatisfiesList.push({ name, externalVersion, depVersions });
-  });
-
-  return notSatisfiesList;
 };
 
 const t = babel.types;

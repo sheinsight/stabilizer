@@ -1,6 +1,7 @@
 import compose from "just-compose";
 import { readPackageMemoized } from "./read-package.js";
 import semver from "semver";
+import nodePath from "node:path";
 
 function isSatisfies(depVersions: string[], externalsVersion: string) {
   return depVersions
@@ -13,16 +14,19 @@ export function recursiveDepsToList(
   cwd: string,
   list: Set<string> = new Set<string>()
 ) {
-  const { packageJson, dirPath } = readPackageMemoized(name, cwd);
-  const entries = Object.entries(packageJson.dependencies ?? {});
-  for (const [name, version] of entries) {
-    const tmp = `${name}@${version}`;
-    if (!list.has(tmp)) {
-      list.add(tmp);
-      recursiveDepsToList(name, dirPath, list);
+  try {
+    const readResult = readPackageMemoized(name, cwd);
+    const entries = Object.entries(readResult?.packageJson.dependencies ?? {});
+    const dirPath = nodePath.dirname(readResult?.path!);
+    for (const [name, version] of entries) {
+      const tmp = `${name}@${version}`;
+      if (!list.has(tmp)) {
+        list.add(tmp);
+        recursiveDepsToList(name, dirPath, list);
+      }
     }
-  }
-  return list;
+    return list;
+  } catch (error) {}
 }
 
 export function depsToMap(list: Set<string>) {
@@ -47,11 +51,12 @@ export const extractNpmScopeName = (source: string) => {
 
 function getExternalVersion(name: string, value: string, cwd: string) {
   if (name === value || value.startsWith(`../${name}`)) {
-    return readPackageMemoized(name, process.cwd()).packageJson.version;
+    return readPackageMemoized(name, process.cwd())?.packageJson.version;
   }
   const scopeName = extractNpmScopeName(value);
-  const dirPath = readPackageMemoized(scopeName, cwd).dirPath;
-  return readPackageMemoized(scopeName, dirPath).packageJson.version;
+  const path = readPackageMemoized(scopeName, cwd)?.path;
+  const dirPath = nodePath.dirname(path!);
+  return readPackageMemoized(scopeName, dirPath)?.packageJson.version;
 }
 
 export function conflictResolution(

@@ -9,14 +9,23 @@ import pick from "just-pick";
 type BundlePkgOption = Omit<
   Pick<InlineDepConfig, "name" | "output"> &
     Partial<
-      Pick<InlineDepConfig, "packageJson" | "minify" | "externals" | "noBundle">
+      Pick<
+        InlineDepConfig,
+        "packageReadResult" | "minify" | "externals" | "noBundle"
+      >
     >,
   never
 >;
 
 const bundlePkg = async (entry: string, depConfig: BundlePkgOption) => {
   // pkg.name 和 name 可能不相同(存在 "jest-worker29": "npm:jest-worker@^29", name 是jest-worker29, pkg.name 是jest-worker)
-  const { name, output, externals, minify = true, packageJson } = depConfig;
+  const {
+    name,
+    output,
+    externals,
+    minify = true,
+    packageReadResult,
+  } = depConfig;
 
   const outDir = path.dirname(output);
 
@@ -71,14 +80,20 @@ const bundlePkg = async (entry: string, depConfig: BundlePkgOption) => {
   }
 
   // bundle 子路径,不需要写入pkg
-  if (packageJson) {
+  if (packageReadResult?.packageJson) {
     // 写入 package.json
     // LICENSE,author ??
     // type,main,module,exports ??
 
     writeJsonFileSync(
       path.join(outDir, "package.json"),
-      pick(packageJson, "name", "version", "types", "typings")
+      pick(
+        packageReadResult?.packageJson,
+        "name",
+        "version",
+        "types",
+        "typings"
+      )
     );
   }
 };
