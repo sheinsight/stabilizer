@@ -20,5 +20,7 @@
   "author": "ityuany",
   "license": "MIT",
   "dependencies": {},
-  "devDependencies": {}
+  "devDependencies": {
+    "father": "^4.1.7"
+  }
 }

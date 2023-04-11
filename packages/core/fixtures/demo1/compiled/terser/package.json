@@ -1,5 +1,0 @@
-{
-	"name": "terser",
-	"version": "5.16.8",
-	"types": "tools/terser.d.ts"
-}

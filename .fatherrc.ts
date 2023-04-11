@@ -1,8 +1,9 @@
 import { defineConfig } from "father";
 
 export default defineConfig({
-  cjs: {},
-  esm: {},
+  esm: {
+    output: "es",
+  },
   targets: {
     node: 14,
   },

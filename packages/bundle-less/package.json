@@ -1,0 +1,38 @@
+{
+  "name": "@shined/stabilizer-bundle-less",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "father build",
+    "test": "vitest",
+    "test:cov": "vitest run --coverage",
+    "dev": "tsx ./src/h.ts"
+  },
+  "exports": {
+    ".": {
+      "import": "./es/index.js",
+      "default": "./es/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "devDependencies": {
+    "@types/babel__core": "^7.20.0",
+    "@types/debug": "^4.1.7",
+    "@types/node": "^18.15.11",
+    "@types/semver": "^7.3.13",
+    "@vitest/coverage-c8": "^0.29.7",
+    "father": "^4.1.7",
+    "tsx": "^3.12.6",
+    "typescript": "^5.0.3",
+    "vitest": "^0.29.7"
+  },
+  "dependencies": {
+    "@shined/stabilizer-utils": "workspace:*",
+    "@babel/core": "^7.21.4"
+  }
+}
