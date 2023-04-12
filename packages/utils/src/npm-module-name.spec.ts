@@ -1,4 +1,4 @@
-import { npmModuleName } from "./index.js";
+import { npmModuleName } from "./npm-module-name.js";
 import { describe, it, expect } from "vitest";
 
 describe("npmModuleName", () => {
