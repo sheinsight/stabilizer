@@ -1,7 +1,7 @@
 import { traverse, parse, types } from "@babel/core";
 import { npmModuleName } from "@shined/stabilizer-utils";
 
-export function findDepFromCode(code: string) {
+export function findDepFromCodeWhenHasSubFileImported(code: string) {
   const ast = parse(code);
 
   const hasSubpath = (path: string) => npmModuleName(path) !== path;
@@ -20,13 +20,17 @@ export function findDepFromCode(code: string) {
       }
       const moduleArg = path.node.arguments[0];
       if (types.isStringLiteral(moduleArg)) {
-        if (hasSubpath(moduleArg.value)) list.add(moduleArg.value);
+        if (hasSubpath(moduleArg.value)) {
+          list.add(moduleArg.value);
+        }
       }
     },
     ImportDeclaration: (path) => {
       const moduleArg = path.node.source;
       if (types.isStringLiteral(moduleArg)) {
-        if (hasSubpath(moduleArg.value)) list.add(moduleArg.value);
+        if (hasSubpath(moduleArg.value)) {
+          list.add(moduleArg.value);
+        }
       }
     },
     ExportDeclaration: (path) => {
@@ -34,7 +38,9 @@ export function findDepFromCode(code: string) {
 
       const moduleArg = path.node.source;
       if (types.isStringLiteral(moduleArg)) {
-        if (hasSubpath(moduleArg.value)) list.add(moduleArg.value);
+        if (hasSubpath(moduleArg.value)) {
+          list.add(moduleArg.value);
+        }
       }
     },
   });
