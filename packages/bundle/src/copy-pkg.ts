@@ -31,6 +31,7 @@ const copyPkg = async (depConfig: InlineDepConfig) => {
   (
     await globby("**/*", {
       ignoreFiles: ["package.json", "readme.md", "changelog.md", "license"],
+      cwd: outDir,
     })
   ).forEach((file) => {
     const packagePath = packageReadResult?.path;

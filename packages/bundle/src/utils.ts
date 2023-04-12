@@ -110,34 +110,6 @@ export const getPkgDtsPath = (
   return getTypesPkgInfo(pkgName, cwd);
 };
 
-/**
- * 获取当前包的所有依赖(递归)
- * - pnpm 存在 workspace:* 问题
- */
-const getPkgAllDeps = (
-  pkgName: string,
-  cwd: string,
-  list: Set<string> = new Set([])
-) => {
-  const info = readPackageMemoized(pkgName, cwd);
-  if (!info) return list;
-  const dependencies = Object.entries(info.packageJson.dependencies || {}).map(
-    ([name, version]) => `${name}@${version}`
-  );
-
-  // console.log(pkgName, info.pkg.version, dependencies);
-
-  dependencies.forEach((dep) => {
-    if (list.has(dep)) return;
-    list.add(dep);
-    const { name, version } = /(?<name>.+)@(?<version>.+)/.exec(dep)!.groups!;
-    const allDeps = getPkgAllDeps(name, info.path, list);
-    allDeps.forEach((dep) => list.add(dep));
-  });
-
-  return list;
-};
-
 const t = babel.types;
 
 export const getModuleDeps = (file: string) => {

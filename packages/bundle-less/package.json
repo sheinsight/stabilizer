@@ -32,7 +32,11 @@
     "vitest": "^0.29.7"
   },
   "dependencies": {
+    "@babel/core": "^7.21.4",
     "@shined/stabilizer-utils": "workspace:*",
-    "@babel/core": "^7.21.4"
+    "globby": "^13.1.3",
+    "just-pick": "^4.2.0",
+    "read-pkg": "^7.1.0",
+    "write-pkg": "^5.1.0"
   }
 }
