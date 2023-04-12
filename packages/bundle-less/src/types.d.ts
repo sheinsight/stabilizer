@@ -3,5 +3,6 @@ declare module "@shined/stabilizer-bundle-less" {
     name: string;
     destDir: string;
     srcDir: string;
+    externals?: Record<string, string>;
   }
 }

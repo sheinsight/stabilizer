@@ -5,3 +5,5 @@ export function npmModuleName(source: string) {
     .slice(0, source.startsWith("@") ? 2 : 1)
     .join("/");
 }
+
+export const uniq = (arr: string[]) => Array.from(new Set(arr));

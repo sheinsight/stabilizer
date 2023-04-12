@@ -6,7 +6,7 @@ export function findDepFromCodeWhenHasSubFileImported(code: string) {
 
   const hasSubpath = (path: string) => npmModuleName(path) !== path;
 
-  const list: Set<string> = new Set([]);
+  const list: Set<string> = new Set<string>([]);
   traverse(ast, {
     CallExpression: (path) => {
       if (
