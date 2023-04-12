@@ -2,7 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { globby } from "globby";
 import { writePackageSync } from "write-pkg";
-import type { UserDepConfig } from "@shined/stabilizer-bundle-less";
 import { readSrcPackage } from "./utils/copy-package-json.js";
 import { findDepFromCodeWhenHasSubFileImported } from "./utils/find-dep-from-code.js";
 import { npmModuleName } from "@shined/stabilizer-utils";

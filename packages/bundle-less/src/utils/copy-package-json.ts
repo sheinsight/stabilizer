@@ -1,8 +1,5 @@
-import { UserDepConfig } from "@shined/stabilizer-bundle-less";
 import pick from "just-pick";
-import path from "node:path";
 import { readPackageSync } from "read-pkg";
-import { writePackageSync } from "write-pkg";
 
 export function readSrcPackage(
   depConfig: Pick<UserDepConfig, "srcDir" | "destDir">
