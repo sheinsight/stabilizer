@@ -6,7 +6,23 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "type": "module",
   "keywords": [],
   "author": "ityuany",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@shined/n-read-pkg": "^1.0.1",
+    "@shined/stabilizer-types": "workspace:*",
+    "@shined/stabilizer-utils": "workspace:*",
+    "read-pkg": "^7.1.0",
+    "read-pkg-up": "^9.1.0",
+    "semver": "^7.3.8"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.11",
+    "@types/semver": "^7.3.13",
+    "father": "^4.1.7",
+    "typescript": "^5.0.3",
+    "vitest": "^0.29.7"
+  }
 }
