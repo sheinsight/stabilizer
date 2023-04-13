@@ -3,10 +3,17 @@
   "version": "0.0.1",
   "description": "This is a universal standard template.",
   "homepage": "https://github.com/sheinsight/tpl-base",
-  "main": "index.js",
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./es/index.js",
+      "default": "./es/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "scripts": {
     "build": "father build",
+    "build:w": "father build -w",
     "test": "vitest",
     "test:cov": "vitest run --coverage",
     "dev": "tsx ./src/h.ts"

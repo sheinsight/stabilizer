@@ -2,6 +2,22 @@ import path from "node:path";
 import { StabilizerConfig, UserDepConfig } from "../types.js";
 import { NormalizedPackageJson } from "read-pkg";
 
+/**
+ *
+ * {
+ *    "react":"^17.0.0"
+ * }
+ * -->
+ * {
+ *  "react":"react"
+ * }
+ *
+ * because dependencies and peerDependencies will to be installed
+ * so we can use it as externals
+ *
+ * @param packageJson
+ * @returns
+ */
 export function calcSelfExternals(packageJson: NormalizedPackageJson) {
   return Object.keys({
     ...packageJson.dependencies,
@@ -15,6 +31,13 @@ export function calcSelfExternals(packageJson: NormalizedPackageJson) {
   );
 }
 
+/**
+ * calculate user configures deps , if version is matched , use it as externals use internal compiled version
+ * @param name
+ * @param deps
+ * @param config
+ * @returns
+ */
 export function calcDepsExternals(
   name: string,
   deps: UserDepConfig[],

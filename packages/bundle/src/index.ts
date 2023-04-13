@@ -1,151 +1,82 @@
-import deepmerge from "deepmerge";
-import { readPackageUpSync } from "read-pkg-up";
 import fs from "node:fs";
 import path from "node:path";
-import { readPackageSync } from "read-pkg";
-import { writePackageSync } from "write-pkg";
-import { _debug } from "./utils.js";
-import bundlePkg from "./bundle-pkg.js";
-import copyPkgDts from "./copy-dts.js";
-import copyPkg from "./copy-pkg.js";
-import { getPkgDtsPath } from "./utils.js";
-import { StabilizerConfig, UserDepConfig } from "./types.js";
-import process from "node:process";
-import { perfectDeps } from "./utils/perfect-deps.js";
-import {
-  calcDepsExternals,
-  calcSelfExternals,
-} from "./utils/calc-externals.js";
-import { conflictResolution } from "./utils/deps.js";
-import resolveFrom from "resolve-from";
+import pick from "just-pick";
+import ncc from "@vercel/ncc";
+import { BundleConfig } from "./typing.js";
+import { readPackage } from "@shined/n-read-pkg";
+import { writeJsonFileSync } from "write-json-file";
 
-const defaultConfig = {
-  out: "compiled",
-  cwd: process.cwd(),
-  externals: {},
-};
-
-export async function stabilizer(
-  deps: (string | UserDepConfig)[],
-  config?: StabilizerConfig
+export async function bundle(
+  input: string,
+  output: string,
+  depConfig: BundleConfig
 ) {
-  const completeConfig = deepmerge(defaultConfig, config ?? {});
+  const { moduleName, externals, minify = true } = depConfig;
 
-  const { cwd } = completeConfig;
+  const srcDir = path.dirname(input);
+  const destDir = path.dirname(output);
 
-  const packageJson = readPackageUpSync({ cwd })?.packageJson;
+  const { code, assets } = await ncc(input, {
+    target: "es6",
+    minify,
+    esm: false,
+    assetBuilds: false,
+    externals: externals,
+    quiet: true,
+    debugLog: process.env.DEBUG?.startsWith("LECP"),
+    // 更多详细配置: https://github.com/vercel/ncc/blob/main/src/index.js#L37,
+    // https://github.com/vercel/webpack-asset-relocator-loader
+    customEmit(filePath, options) {
+      // TODO
+      const copyFile = () => {
+        const absFilePath = path.isAbsolute(filePath)
+          ? filePath.split("!")[0] // 可能存在 xx!xx 自定义 loader 形式
+          : require.resolve(filePath, { paths: [path.dirname(options.id)] });
+        const outPath = path.join(destDir, path.basename(absFilePath));
+        fs.mkdirSync(path.dirname(outPath), { recursive: true });
+        fs.copyFileSync(absFilePath, outPath);
+      };
 
-  if (!packageJson) {
-    throw new Error("can not found package.json");
+      const customEmitOptions = {
+        ...options,
+        moduleName,
+      };
+
+      if (depConfig.customEmit?.(filePath, customEmitOptions)) {
+        copyFile();
+        // transform
+        return `'./${path.basename(filePath)}'`;
+      }
+    },
+  });
+
+  await fs.promises.mkdir(destDir, { recursive: true });
+
+  // 写入 js
+  await fs.promises.writeFile(output, code, { encoding: "utf-8" });
+
+  // TODO: assets的js文件, noBundle复制的js文件 的自身依赖,第三方依赖没有处理,目前需要人肉检查一遍
+  // 自身依赖需要复制,第三方依赖处理 externals 或者 需要再次打包(可能存在依赖有assets)后加入externals
+  // 有些依赖不好分析:
+  // 如 mini-css-extract-plugin的loader.js 依赖 hmr相关 -> https://github.com/webpack-contrib/mini-css-extract-plugin/blob/master/src/loader.js#L54
+  if (assets) {
+    // assets: chokidar 存在场景 { "fsevents.node": xxx}
+    Object.entries(assets).forEach(([name, item]) => {
+      const outPath = path.join(destDir, name);
+      fs.mkdirSync(path.dirname(outPath), { recursive: true });
+      fs.writeFileSync(outPath, item.source, {
+        encoding: "utf-8",
+        mode: item.permissions,
+      });
+    });
   }
 
-  const completeDeps = perfectDeps(deps, completeConfig);
+  const readPackageResult = readPackage(input, srcDir);
 
-  const selfExternals = calcSelfExternals(packageJson);
-
-  for (const depConfig of completeDeps) {
-    const {
-      name,
-      clean,
-      outDir,
-      packageReadResult,
-      dtsOnly,
-      mode,
-      patch,
-      dts,
-    } = depConfig;
-
-    if (clean) {
-      fs.rmSync(outDir, { recursive: true, force: true });
-    }
-
-    const depsExternals = calcDepsExternals(name, completeDeps, completeConfig);
-
-    const externals = {
-      ...selfExternals,
-      ...completeConfig.externals,
-      ...depsExternals,
-      ...depConfig.externals,
-    } as Record<string, string>;
-
-    const packageJsonDir = path.dirname(packageReadResult.path);
-
-    conflictResolution(name, packageJsonDir, externals);
-
-    if (!dtsOnly) {
-      // js编译时 dtsOnly的dep需要从externals中移除
-      let bundleExternals = { ...externals };
-      completeDeps.forEach((dep) => {
-        if (dep.dtsOnly && bundleExternals[dep.name]) {
-          delete bundleExternals[dep.name];
-        }
-      });
-      if (mode === "bundless") {
-        // 复制 pkg
-        await copyPkg({ ...depConfig, externals: bundleExternals });
-      } else {
-        // 编译 pkg
-        await bundlePkg(resolveFrom(cwd, depConfig.name), {
-          ...depConfig,
-          externals: bundleExternals,
-        });
-      }
-    }
-
-    let dtsInfo = undefined;
-
-    if (dts) {
-      // 写入 types(目前采用 way3)
-      // way1 : 复制入口 types 所在文件夹(暂时简单粗暴点)
-      //   有定义 types,typings 复制(判断文件夹/单文件??)
-      //   entry同目录存在 xxx.js -> xxx.d.ts
-      //   有@types/xxx  复制
-      // way2 : 是否打包 dts(api-extractor) ??
-      //   types entry-> index.d.ts 不用考虑文件夹/单文件 但是存在失败风险
-      // 1,2都存在问题: 依赖的类型没有复制进去(如globby 依赖 fast-glob)
-      // way3: 正则(或者ast)分析entry 的 import, 递归寻找依赖. 复制&替换引用路径
-      //    正则存在误替换注释问题, ast可能处理比较复杂和慢
-      // way4: 先api-extractor打包 dts, 然后安装 3 递归寻找依赖. 待验证性能和可靠性
-      dtsInfo = getPkgDtsPath(name, cwd);
-
-      if (dtsInfo) {
-        const { fullPath: dtsPath, types } = dtsInfo;
-        _debug(`${name}对应的 dts:`, dtsPath);
-
-        // logger.info(chalk.gray(`  复制 dts`));
-        copyPkgDts({ entry: dtsPath, outDir, externals, cwd });
-
-        // 复写 package.json 的 types
-        if (
-          types &&
-          ![
-            "index.d.ts",
-            depConfig.packageReadResult.packageJson.types,
-            depConfig.packageReadResult.packageJson.typings,
-          ].includes(types)
-        ) {
-          const data = readPackageSync({ cwd: outDir });
-          data.types = types;
-          writePackageSync(outDir, data);
-        }
-      }
-
-      // - 复制额外的文件,指向 index.js. 如何寻找(暂时只能人肉)??
-      // - assets 替换 require 相关路径
-      // - 修复 dts: 如 export = less 去除 declare module "less" 包裹
-      if (patch) {
-        try {
-          await patch({
-            ...depConfig,
-            outDtsPath: dtsInfo?.types
-              ? path.join(outDir, dtsInfo.types)
-              : undefined,
-            pkgDtsInfo: dtsInfo,
-          });
-        } catch (error) {
-          // logger.warn(error);
-        }
-      }
-    }
+  if (readPackageResult) {
+    writeJsonFileSync(
+      path.join(destDir, "package.json"),
+      pick(readPackageResult.packageJson, "name", "version", "types", "typings")
+    );
   }
 }

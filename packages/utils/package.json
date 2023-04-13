@@ -4,6 +4,7 @@
   "description": "",
   "scripts": {
     "build": "father build",
+    "build:w": "father build -w",
     "test": "vitest",
     "test:cov": "vitest run --coverage",
     "dev": "tsx ./src/h.ts"
@@ -20,8 +21,11 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "father": "^4.1.7",
     "typescript": "^5.0.3",
-    "vitest": "^0.29.7",
-    "father": "^4.1.7"
+    "vitest": "^0.29.7"
+  },
+  "dependencies": {
+    "read-pkg": "^7.1.0"
   }
 }

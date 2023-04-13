@@ -16,11 +16,16 @@
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
+  "scripts": {
+    "start": "turbo dev",
+    "build": "turbo build",
+    "build:w": "turbo build:w"
+  },
   "keywords": [],
   "author": "ityuany",
   "license": "MIT",
-  "dependencies": {},
   "devDependencies": {
-    "father": "^4.1.7"
+    "father": "^4.1.7",
+    "turbo": "^1.9.1"
   }
 }

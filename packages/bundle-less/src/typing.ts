@@ -1,4 +1,4 @@
-interface UserDepConfig {
+export interface UserDepConfig {
   name: string;
   destDir: string;
   srcDir: string;

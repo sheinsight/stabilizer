@@ -1,7 +1,8 @@
 import pick from "just-pick";
 import { readPackageSync } from "read-pkg";
+import { UserDepConfig } from "../typing.js";
 
-export function readSrcPackage(
+export function readPackage(
   depConfig: Pick<UserDepConfig, "srcDir" | "destDir">
 ) {
   const { srcDir } = depConfig;
