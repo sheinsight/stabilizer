@@ -2,16 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 import pick from "just-pick";
 import ncc from "@vercel/ncc";
-import { BundleConfig } from "./typing.js";
 import { readPackage } from "@shined/n-read-pkg";
 import { writeJsonFileSync } from "write-json-file";
+import { UserAdvancedDepConfig } from "@shined/stabilizer-types";
 
 export async function bundle(
   input: string,
   output: string,
-  depConfig: BundleConfig
+  depConfig: UserAdvancedDepConfig
 ) {
-  const { moduleName, externals, minify = true } = depConfig;
+  const { name, externals, minify = true } = depConfig;
 
   const srcDir = path.dirname(input);
   const destDir = path.dirname(output);
@@ -39,7 +39,7 @@ export async function bundle(
 
       const customEmitOptions = {
         ...options,
-        moduleName,
+        name,
       };
 
       if (depConfig.customEmit?.(filePath, customEmitOptions)) {

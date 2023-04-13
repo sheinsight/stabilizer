@@ -49,6 +49,7 @@
   },
   "dependencies": {
     "@shined/stabilizer-utils": "workspace:*",
+    "@shined/stabilizer-types": "workspace:*",
     "@babel/core": "^7.21.4",
     "@shined/n-read-pkg": "^1.0.1",
     "@vercel/ncc": "^0.36.1",
