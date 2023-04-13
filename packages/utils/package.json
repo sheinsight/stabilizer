@@ -26,6 +26,7 @@
     "vitest": "^0.29.7"
   },
   "dependencies": {
+    "@shined/stabilizer-types": "workspace:*",
     "read-pkg": "^7.1.0"
   }
 }

@@ -19,6 +19,9 @@ importers:
       '@shined/n-read-pkg':
         specifier: ^1.0.1
         version: 1.0.1
+      '@shined/stabilizer-types':
+        specifier: workspace:*
+        version: link:../types
       '@shined/stabilizer-utils':
         specifier: workspace:*
         version: link:../utils
@@ -192,12 +195,50 @@ importers:
 
   packages/dts-less: {}
 
-  packages/stabilizer: {}
+  packages/stabilizer:
+    dependencies:
+      '@shined/n-read-pkg':
+        specifier: ^1.0.1
+        version: 1.0.1
+      '@shined/stabilizer-types':
+        specifier: workspace:*
+        version: link:../types
+      '@shined/stabilizer-utils':
+        specifier: workspace:*
+        version: link:../utils
+      read-pkg:
+        specifier: ^7.1.0
+        version: 7.1.0
+      read-pkg-up:
+        specifier: ^9.1.0
+        version: 9.1.0
+      semver:
+        specifier: ^7.3.8
+        version: 7.3.8
+    devDependencies:
+      '@types/node':
+        specifier: ^18.15.11
+        version: 18.15.11
+      '@types/semver':
+        specifier: ^7.3.13
+        version: 7.3.13
+      father:
+        specifier: ^4.1.7
+        version: 4.1.7(@types/node@18.15.11)(styled-components@5.3.9)(type-fest@3.8.0)(webpack@5.78.0)
+      typescript:
+        specifier: ^5.0.3
+        version: 5.0.3
+      vitest:
+        specifier: ^0.29.7
+        version: 0.29.7
 
   packages/types: {}
 
   packages/utils:
     dependencies:
+      '@shined/stabilizer-types':
+        specifier: workspace:*
+        version: link:../types
       read-pkg:
         specifier: ^7.1.0
         version: 7.1.0
