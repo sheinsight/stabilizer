@@ -1,11 +1,8 @@
+import { UserAdvancedDepConfig } from "@shined/stabilizer-types";
 import pick from "just-pick";
 import { readPackageSync } from "read-pkg";
-import { UserDepConfig } from "../typing.js";
 
-export function readPackage(
-  depConfig: Pick<UserDepConfig, "srcDir" | "destDir">
-) {
-  const { srcDir } = depConfig;
+export function readPackage(srcDir: string) {
   // read package.json from srcDir
   const srcPackageJson = readPackageSync({ cwd: srcDir });
   const pickFields = [

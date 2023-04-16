@@ -7,6 +7,9 @@ import {
   getOwnExternalDeps,
 } from "./utils/deps.js";
 import path from "node:path";
+import { bundle } from "@shined/stabilizer-bundle";
+import { bundleLess } from "@shined/stabilizer-bundle-less";
+import resolveFrom from "resolve-from";
 
 export async function stabilizer(userConfig: StabilizerConfig) {
   const config = mergeConfig(userConfig);
@@ -29,14 +32,18 @@ export async function stabilizer(userConfig: StabilizerConfig) {
       ...dep.externals,
     };
 
-    // TODO
-    const dir = path.dirname(dep.packageJsonReadResult.path);
-    conflictDepVResolution(dep.name, dir, externals);
+    conflictDepVResolution(dep, externals, cwd);
+
+    const inputFile = resolveFrom(cwd, dep.name);
+    const outputDir = path.join(cwd, "compiled", "node_modules");
+    const inputDir = path.dirname(inputFile);
 
     if (dep.mode === "bundle-less") {
+      await bundleLess(inputDir, outputDir, dep);
     }
 
     if (dep.mode === "bundle") {
+      await bundle(inputFile, outputDir, dep);
     }
 
     if (dep.dts) {

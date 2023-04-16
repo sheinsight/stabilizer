@@ -48,10 +48,10 @@
     "vitest": "^0.29.7"
   },
   "dependencies": {
-    "@shined/stabilizer-utils": "workspace:*",
-    "@shined/stabilizer-types": "workspace:*",
     "@babel/core": "^7.21.4",
     "@shined/n-read-pkg": "^1.0.1",
+    "@shined/stabilizer-types": "workspace:*",
+    "@shined/stabilizer-utils": "workspace:*",
     "@vercel/ncc": "^0.36.1",
     "chalk": "^5.2.0",
     "debug": "^4.3.4",

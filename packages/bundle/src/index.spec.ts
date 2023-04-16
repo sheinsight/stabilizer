@@ -10,7 +10,7 @@ it("should work", async () => {
   const input = require.resolve(module, { paths: [cwd] });
   const output = path.join(cwd, "compiled", "node_modules", module, "index.js");
   await bundle(input, output, {
-    moduleName: module,
+    name: module,
     externals: {},
     minify: false,
   });

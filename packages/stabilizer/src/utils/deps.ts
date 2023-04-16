@@ -6,6 +6,7 @@ import {
 } from "@shined/stabilizer-types";
 import { readPackage } from "@shined/n-read-pkg";
 import semver from "semver";
+import { npmModuleName } from "@shined/stabilizer-utils";
 
 /**
  * merge dependencies and peerDependencies,
@@ -84,19 +85,33 @@ export function isSatisfies(depVersions: string[], externalsVersion: string) {
     .every((v) => semver.satisfies(externalsVersion, v));
 }
 
+/**
+ * If there are precompiled packages, it must be ensured that all "private" are set to true.
+ * @param name module name
+ * @param value alias to module name
+ * @param cwd current working directory
+ * @returns version
+ */
+function getExternalVersion(name: string, value: string, cwd: string) {
+  const moduleName = npmModuleName(value);
+  return readPackage(moduleName, cwd)?.packageJson.version;
+}
+
 export function conflictDepVResolution(
   dep: InlineUserDepAdvancedConfig,
-  externals: Record<string, string>
+  externals: Record<string, string>,
+  cwd: string
 ) {
   const dir = path.dirname(dep.packageJsonReadResult.path);
+  // transform to <name>@<version> list
   const list = getRuntimeDeps(dep.name, dir);
+  const recursiveDepMap = depsToMap(list);
+
   const entries = Object.entries(externals);
 
-  const recursiveDepMap = depsToMap(list);
   for (const [name, versions] of entries) {
     const depVersions = recursiveDepMap[name];
     if (depVersions) {
-      // TODO
       const externalVersion = getExternalVersion(name, versions, cwd);
       if (externalVersion) {
         if (!isSatisfies(depVersions, externalVersion)) {

@@ -2,7 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { globby } from "globby";
 import resolveFrom from "resolve-from";
-import { UserDepConfig } from "./typing.js";
 import { writePackageSync } from "write-pkg";
 import { uniq } from "@shined/stabilizer-utils";
 import { bundle } from "@shined/stabilizer-bundle";
@@ -10,11 +9,16 @@ import { npmModuleName } from "@shined/stabilizer-utils";
 import { readPackage } from "./utils/copy-package-json.js";
 import { findDepFromCodeWhenHasSubFileImported } from "./utils/find-dep-from-code.js";
 import { transformFileAlias } from "./utils/transform-file-alias.js";
+import { UserAdvancedDepConfig } from "@shined/stabilizer-types";
 
-export async function bundleLess(depConfig: UserDepConfig) {
-  const { srcDir, destDir, name, externals = {} } = depConfig;
+export async function bundleLess(
+  srcDir: string,
+  destDir: string,
+  depConfig: UserAdvancedDepConfig
+) {
+  const { name, externals = {} } = depConfig;
 
-  const packageJson = readPackage(depConfig);
+  const packageJson = readPackage(srcDir);
 
   // pick some fields from package.json write to destDir
   const destPackageJsonPath = path.join(destDir, "package.json");
@@ -64,7 +68,7 @@ export async function bundleLess(depConfig: UserDepConfig) {
       const packageJsonDir = path.dirname(packageJson.dest.path);
       const entry = resolveFrom(packageJsonDir, subpath);
       await bundle(entry, path.join(destDir, `${subpath}.js`), {
-        moduleName: subpath,
+        name: subpath,
         // externals: exchangeExternals(pkgExternals), 🤔
       });
     })

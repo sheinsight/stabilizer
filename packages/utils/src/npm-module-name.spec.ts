@@ -19,4 +19,16 @@ describe("npmModuleName", () => {
     const result = npmModuleName(input);
     expect(result).toBe("@scope/some-module");
   });
+
+  it("should return the correct module name for scoped package", () => {
+    const input = "lodash";
+    const result = npmModuleName(input);
+    expect(result).toBe("lodash");
+  });
+
+  it("should return the correct module name for scoped package", () => {
+    const input = "@sheind/lodash";
+    const result = npmModuleName(input);
+    expect(result).toBe("@sheind/lodash");
+  });
 });

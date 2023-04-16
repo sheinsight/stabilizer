@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "father build",
+    "build:w": "father build -w",
+    "test": "vitest",
+    "test:cov": "vitest run --coverage"
   },
   "type": "module",
   "keywords": [],
@@ -14,6 +17,9 @@
     "@shined/n-read-pkg": "^1.0.1",
     "@shined/stabilizer-types": "workspace:*",
     "@shined/stabilizer-utils": "workspace:*",
+    "@shined/stabilizer-bundle": "workspace:*",
+    "@shined/stabilizer-bundle-less": "workspace:*",
+    "resolve-from": "^5.0.0",
     "read-pkg": "^7.1.0",
     "read-pkg-up": "^9.1.0",
     "semver": "^7.3.8"
